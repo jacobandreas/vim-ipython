@@ -369,6 +369,13 @@ def get_child_msg(msg_id):
             #got a message, but not the one we were looking for
             echo('skipping a message on shell_channel','WarningMsg')
     return m
+
+def get_pyout_msg(msg_id):
+    while True:
+        m = km.sub_channel.get_msg(timeout=1)
+        if m['msg_type'] == 'pyout' and m['parent_header']['msg_id'] == msg_id:
+            break
+    return m
             
 def print_prompt(prompt,msg_id=None):
     """Print In[] or In[42] style messages"""
@@ -383,6 +390,14 @@ def print_prompt(prompt,msg_id=None):
             echo("In[]: %s (no reply from IPython kernel)" % prompt)
     else:
         echo("In[]: %s" % prompt)
+
+def read_output(msg_id):
+    try:
+        child = get_pyout_msg(msg_id)
+        data = child['content']['data']['text/plain']
+        return data
+    except Empty:
+        return None
 
 def with_subchannel(f,*args):
     "conditionally monitor subchannel"
@@ -409,6 +424,11 @@ def run_this_line():
 def run_command(cmd):
     msg_id = send(cmd)
     print_prompt(cmd, msg_id)
+
+def run_command_and_read(cmd):
+    msg_id = send(cmd)
+    data = read_output(msg_id)
+    return data
 
 @with_subchannel
 def run_these_lines():
@@ -572,6 +592,9 @@ if g:ipy_perform_mappings != 0
     map <silent> <leader>d :py get_doc_buffer()<CR>
     map <silent> <leader>s :py if update_subchannel_msgs(force=True): echo("vim-ipython shell updated",'Operator')<CR>
     map <silent> <S-F9> :python toggle_reselect()<CR>
+
+    nmap <leader>e :call IPythonTraceback()<CR>
+
     "map <silent> <C-F6> :python send('%pdb')<CR>
     "map <silent> <F6> :python set_breakpoint()<CR>
     "map <silent> <s-F6> :python clear_breakpoint()<CR>
